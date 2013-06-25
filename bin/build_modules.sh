@@ -21,7 +21,6 @@ do
     git checkout ../conf/logback.xml ; true
   fi
 
-
   $LEIN with-profile release clean
   $LEIN with-profile release deps
   $LEIN with-profile release jar
