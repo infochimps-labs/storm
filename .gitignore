@@ -1,4 +1,5 @@
 .lein-repl-history
+*.log
 /classes
 /lib
 deploy/lib

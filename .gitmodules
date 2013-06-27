@@ -1,12 +1,12 @@
-[submodule "jzmq"]
-	path = jzmq
-	url = https://github.com/zeromq/jzmq.git
+[submodule "wiki"]
+	path = wiki
+	url = https://github.com/infochimps-labs/storm.wiki.git
 [submodule "storm-starter"]
 	path = storm-starter
 	url = https://github.com/infochimps-labs/storm-starter.git
 [submodule "storm-contrib"]
 	path = storm-contrib
 	url = https://github.com/infochimps-labs/storm-contrib.git
-[submodule "wiki"]
-	path = wiki
-	url = https://github.com/infochimps-labs/storm.wiki.git
+[submodule "jzmq"]
+	path = jzmq
+	url = https://github.com/nathanmarz/jzmq.git
