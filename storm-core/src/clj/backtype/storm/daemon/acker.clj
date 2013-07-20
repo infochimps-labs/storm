@@ -27,15 +27,19 @@
 
 (defn mk-acker-bolt []
   (let [output-collector (MutableObject.)
-        pending (MutableObject.)]
+        pending (MutableObject.)
+        acker-id (MutableObject.)]
     (reify IBolt
+      (^String toString [this] (.getObject acker-id))
       (^void prepare [this ^Map storm-conf ^TopologyContext context ^OutputCollector collector]
                (.setObject output-collector collector)
+               (.setObject acker-id (clojure.string/join ":" [(.getThisComponentId context) (.getThisTaskId context)]))
                (.setObject pending (RotatingMap. 2))
-               )
+        )
       (^void execute [this ^Tuple tuple]
              (let [^RotatingMap pending (.getObject pending)
-                   stream-id (.getSourceStreamId tuple)]
+                   stream-id (.getSourceStreamId tuple)
+                   ^String acker-id (.getObject acker-id)]
                (if (= stream-id Constants/SYSTEM_TICK_STREAM_ID)
                  (.rotate pending)
                  (let [id (.getValue tuple 0)

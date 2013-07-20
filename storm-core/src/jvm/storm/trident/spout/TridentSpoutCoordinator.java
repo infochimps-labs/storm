@@ -16,7 +16,6 @@ import storm.trident.topology.MasterBatchCoordinator;
 import storm.trident.topology.state.RotatingTransactionalState;
 import storm.trident.topology.state.TransactionalState;
 
-
 public class TridentSpoutCoordinator implements IBasicBolt {
     public static final Logger LOG = LoggerFactory.getLogger(TridentSpoutCoordinator.class);
     private static final String META_DIR = "meta";
@@ -26,7 +25,7 @@ public class TridentSpoutCoordinator implements IBasicBolt {
     RotatingTransactionalState _state;
     TransactionalState _underlyingState;
     String _id;
-
+    String _compId;
     
     public TridentSpoutCoordinator(String id, ITridentSpout spout) {
         _spout = spout;
@@ -35,6 +34,8 @@ public class TridentSpoutCoordinator implements IBasicBolt {
     
     @Override
     public void prepare(Map conf, TopologyContext context) {
+        _compId = context.getThisComponentId() + ":" + context.getThisTaskId();
+
         _coord = _spout.getCoordinator(_id, conf, context);
         _underlyingState = TransactionalState.newCoordinatorState(conf, _id);
         _state = new RotatingTransactionalState(_underlyingState, META_DIR);
@@ -55,6 +56,11 @@ public class TridentSpoutCoordinator implements IBasicBolt {
             collector.emit(MasterBatchCoordinator.BATCH_STREAM_ID, new Values(attempt, meta));
         }
                 
+    }
+
+    @Override
+    public String toString() {
+        return _compId;
     }
 
     @Override

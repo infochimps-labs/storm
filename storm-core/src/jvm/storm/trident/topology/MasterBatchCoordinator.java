@@ -20,9 +20,9 @@ import org.slf4j.LoggerFactory;
 import storm.trident.spout.ITridentSpout;
 import storm.trident.topology.state.TransactionalState;
 
-public class MasterBatchCoordinator extends BaseRichSpout { 
+public class MasterBatchCoordinator extends BaseRichSpout {
     public static final Logger LOG = LoggerFactory.getLogger(MasterBatchCoordinator.class);
-    
+
     public static final long INIT_TXID = 1L;
     
     
@@ -50,7 +50,8 @@ public class MasterBatchCoordinator extends BaseRichSpout {
     WindowedTimeThrottler _throttler;
     
     boolean _active = true;
-    
+    String _id = "";
+
     public MasterBatchCoordinator(List<String> spoutIds, List<ITridentSpout> spouts) {
         if(spoutIds.isEmpty()) {
             throw new IllegalArgumentException("Must manage at least one spout");
@@ -71,6 +72,7 @@ public class MasterBatchCoordinator extends BaseRichSpout {
         
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+        _id = "[" + context.getThisTaskId() + "]" + context.getThisComponentId();
         _throttler = new WindowedTimeThrottler((Number)conf.get(Config.TOPOLOGY_TRIDENT_BATCH_EMIT_INTERVAL_MILLIS), 1);
         for(String spoutId: _managedSpoutIds) {
             _states.add(TransactionalState.newCoordinatorState(conf, spoutId));
@@ -109,6 +111,7 @@ public class MasterBatchCoordinator extends BaseRichSpout {
     public void ack(Object msgId) {
         TransactionAttempt tx = (TransactionAttempt) msgId;
         TransactionStatus status = _activeTx.get(tx.getTransactionId());
+
         if(status!=null && tx.equals(status.attempt)) {
             if(status.status==AttemptStatus.PROCESSING) {
                 status.status = AttemptStatus.PROCESSED;
@@ -116,6 +119,7 @@ public class MasterBatchCoordinator extends BaseRichSpout {
                 _activeTx.remove(tx.getTransactionId());
                 _attemptIds.remove(tx.getTransactionId());
                 _collector.emit(SUCCESS_STREAM_ID, new Values(tx));
+
                 _currTransaction = nextTransactionId(tx.getTransactionId());
                 for(TransactionalState state: _states) {
                     state.setData(CURRENT_TX, _currTransaction);                    
@@ -264,5 +268,10 @@ public class MasterBatchCoordinator extends BaseRichSpout {
         ret.headMap(currTransaction).clear();
         ret.tailMap(currTransaction + maxBatches - 1).clear();
         return ret;
+    }
+
+    @Override
+    public String toString() {
+        return _id;
     }
 }

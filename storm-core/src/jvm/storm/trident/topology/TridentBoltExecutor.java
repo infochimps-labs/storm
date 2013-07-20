@@ -31,7 +31,9 @@ import storm.trident.spout.IBatchID;
 
 public class TridentBoltExecutor implements IRichBolt {
     public static String COORD_STREAM_PREFIX = "$coord-";
-    
+
+    String _id = "";
+
     public static String COORD_STREAM(String batch) {
         return COORD_STREAM_PREFIX + batch;
     }
@@ -176,7 +178,9 @@ public class TridentBoltExecutor implements IRichBolt {
     TopologyContext _context;
     
     @Override
-    public void prepare(Map conf, TopologyContext context, OutputCollector collector) {        
+    public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
+        _id = "[" + context.getThisTaskId() + "]" + context.getThisComponentId();
+
         _messageTimeoutMs = context.maxTopologyMessageTimeout() * 1000L;
         _lastRotate = System.currentTimeMillis();
         _batches = new RotatingMap(2);
@@ -295,13 +299,13 @@ public class TridentBoltExecutor implements IRichBolt {
             // this is so we can do things like have simple DRPC that doesn't need to use batch processing
             _coordCollector.setCurrBatch(null);
             _bolt.execute(null, tuple);
+
             _collector.ack(tuple);
             return;
         }
         IBatchID id = (IBatchID) tuple.getValue(0);
         //get transaction id
         //if it already exissts and attempt id is greater than the attempt there
-        
         
         TrackedBatch tracked = (TrackedBatch) _batches.get(id.getId());
 //        if(_batches.size() > 10 && _context.getThisTaskIndex() == 0) {
@@ -333,10 +337,10 @@ public class TridentBoltExecutor implements IRichBolt {
             _batches.put(id.getId(), tracked);
         }
         _coordCollector.setCurrBatch(tracked);
-        
         //System.out.println("TRACKED: " + tracked + " " + tuple);
-        
+
         TupleType t = getTupleType(tuple, tracked);
+
         if(t==TupleType.COMMIT) {
             tracked.receivedCommit = true;
             checkFinish(tracked, tuple, t);
@@ -404,5 +408,10 @@ public class TridentBoltExecutor implements IRichBolt {
         REGULAR,
         COMMIT,
         COORD
-    }    
+    }
+
+    @Override
+    public String toString() {
+        return _id;
+    }
 }

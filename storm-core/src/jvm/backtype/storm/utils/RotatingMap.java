@@ -68,6 +68,10 @@ public class RotatingMap<K, V> {
         return false;
     }
 
+    public String toString() {
+        return _buckets.toString();
+    }
+
     public V get(K key) {
         for(HashMap<K, V> bucket: _buckets) {
             if(bucket.containsKey(key)) {

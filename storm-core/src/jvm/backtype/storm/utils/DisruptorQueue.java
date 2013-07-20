@@ -33,12 +33,18 @@ public class DisruptorQueue implements IStatefulObject {
     RingBuffer<MutableObject> _buffer;
     Sequence _consumer;
     SequenceBarrier _barrier;
+    String _role;
+    String _ownerId;
+    String _componentId;
     
     // TODO: consider having a threadlocal cache of this variable to speed up reads?
     volatile boolean consumerStartedFlag = false;
     ConcurrentLinkedQueue<Object> _cache = new ConcurrentLinkedQueue();
     
-    public DisruptorQueue(ClaimStrategy claim, WaitStrategy wait) {
+    public DisruptorQueue(String role, String ownerId, String componentId, ClaimStrategy claim, WaitStrategy wait) {
+        _role = role;
+        _ownerId = ownerId;
+        _componentId = componentId;
         _buffer = new RingBuffer<MutableObject>(new ObjectEventFactory(), claim, wait);
         _consumer = new Sequence();
         _barrier = _buffer.newBarrier();
@@ -138,6 +144,11 @@ public class DisruptorQueue implements IStatefulObject {
     
     private void flushCache() {
         publish(FLUSH_CACHE);
+    }
+
+    @Override
+    public String toString() {
+        return "Q:" + _ownerId + "-" + _componentId + "." + _role;
     }
 
     public long  population() { return (writePos() - readPos()); }

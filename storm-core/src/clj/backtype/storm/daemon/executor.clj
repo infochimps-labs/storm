@@ -188,7 +188,7 @@
         component-id (.getComponentId worker-context (first task-ids))
         storm-conf (normalized-component-conf (:storm-conf worker) worker-context component-id)
         executor-type (executor-type worker-context component-id)
-        batch-transfer->worker (disruptor/disruptor-queue
+        batch-transfer->worker (disruptor/disruptor-queue "send" (str executor-id) (str component-id)
                                  (storm-conf TOPOLOGY-EXECUTOR-SEND-BUFFER-SIZE)
                                   :claim-strategy :single-threaded
                                   :wait-strategy (storm-conf TOPOLOGY-DISRUPTOR-WAIT-STRATEGY))
@@ -662,7 +662,7 @@
           (if (= component-id Constants/SYSTEM_COMPONENT_ID)
             (builtin-metrics/register-queue-metrics {:sendqueue (:batch-transfer-queue executor-data)
                                                      :receive (:receive-queue executor-data)
-                                                     :transfer (:transfer-queue (:worker executor-data))}
+                                                     :transfer  (:transfer-queue (:worker executor-data))}
                                                     storm-conf user-context)
             (builtin-metrics/register-queue-metrics {:sendqueue (:batch-transfer-queue executor-data)
                                                      :receive (:receive-queue executor-data)}
