@@ -6,7 +6,8 @@
   (:import [backtype.storm.spout ISpoutWaitStrategy])
   (:import [backtype.storm.hooks.info SpoutAckInfo SpoutFailInfo
             EmitInfo BoltFailInfo BoltAckInfo BoltExecuteInfo])
-  (:import [backtype.storm.metric.api IMetric IMetricsConsumer$TaskInfo IMetricsConsumer$DataPoint])
+  (:import [backtype.storm.metric.api IMetric IMetricsConsumer$TaskInfo IMetricsConsumer$DataPoint StateMetric])
+  (:import [backtype.storm Config])
   (:require [backtype.storm [tuple :as tuple]])
   (:require [backtype.storm.daemon [task :as task]])
   (:require [backtype.storm.daemon.builtin-metrics :as builtin-metrics]))
@@ -188,7 +189,7 @@
         storm-conf (normalized-component-conf (:storm-conf worker) worker-context component-id)
         executor-type (executor-type worker-context component-id)
         batch-transfer->worker (disruptor/disruptor-queue
-                                  (storm-conf TOPOLOGY-EXECUTOR-SEND-BUFFER-SIZE)
+                                 (storm-conf TOPOLOGY-EXECUTOR-SEND-BUFFER-SIZE)
                                   :claim-strategy :single-threaded
                                   :wait-strategy (storm-conf TOPOLOGY-DISRUPTOR-WAIT-STRATEGY))
         ]
@@ -245,8 +246,8 @@
   (let [{:keys [storm-conf receive-queue worker-context interval->task->metric-registry]} executor-data
         distinct-time-bucket-intervals (keys interval->task->metric-registry)]
     (doseq [interval distinct-time-bucket-intervals]
-      (schedule-recurring 
-       (:user-timer (:worker executor-data)) 
+      (schedule-recurring
+       (:user-timer (:worker executor-data))
        interval
        interval
        (fn []
@@ -307,13 +308,13 @@
         report-error-and-die (:report-error-and-die executor-data)
         component-id (:component-id executor-data)
 
-        ;; starting the batch-transfer->worker ensures that anything publishing to that queue 
+        ;; starting the batch-transfer->worker ensures that anything publishing to that queue
         ;; doesn't block (because it's a single threaded queue and the caching/consumer started
         ;; trick isn't thread-safe)
         system-threads [(start-batch-transfer->worker-handler! worker executor-data)]
         handlers (with-error-reaction report-error-and-die
                    (mk-threads executor-data task-datas))
-        threads (concat handlers system-threads)]    
+        threads (concat handlers system-threads)]
     (setup-ticks! worker executor-data)
 
     (log-message "Finished loading executor " component-id ":" (pr-str executor-id))
@@ -333,7 +334,7 @@
         (doseq [t threads]
           (.interrupt t)
           (.join t))
-        
+
         (doseq [user-context (map :user-context (vals task-datas))]
           (doseq [hook (.getHooks user-context)]
             (.cleanup hook)))
@@ -352,7 +353,7 @@
     (.fail spout msg-id)
     (task/apply-hooks (:user-context task-data) .spoutFail (SpoutFailInfo. msg-id task-id time-delta))
     (when time-delta
-      (builtin-metrics/spout-failed-tuple! (:builtin-metrics task-data) (:stats executor-data) (:stream tuple-info))      
+      (builtin-metrics/spout-failed-tuple! (:builtin-metrics task-data) (:stats executor-data) (:stream tuple-info))
       (stats/spout-failed-tuple! (:stats executor-data) (:stream tuple-info) time-delta))))
 
 (defn- ack-spout-msg [executor-data task-data msg-id tuple-info time-delta]
@@ -399,8 +400,8 @@
   (let [{:keys [storm-conf component-id worker-context transfer-fn report-error sampler open-or-prepare-was-called?]} executor-data
         ^ISpoutWaitStrategy spout-wait-strategy (init-spout-wait-strategy storm-conf)
         max-spout-pending (executor-max-spout-pending storm-conf (count task-datas))
-        ^Integer max-spout-pending (if max-spout-pending (int max-spout-pending))        
-        last-active (atom false)        
+        ^Integer max-spout-pending (if max-spout-pending (int max-spout-pending))
+        last-active (atom false)
         spouts (ArrayList. (map :object (vals task-datas)))
         rand (Random. (Utils/secureRandomLong))
         
@@ -444,13 +445,13 @@
         ;; this limits the size of the overflow buffer to however many tuples a spout emits in one call of nextTuple, 
         ;; preventing memory issues
         overflow-buffer (LinkedList.)]
-   
+    
     [(async-loop
       (fn []
         ;; If topology was started in inactive state, don't call (.open spout) until it's activated first.
         (while (not @(:storm-active-atom executor-data))
           (Thread/sleep 100))
-        
+
         (log-message "Opening spout " component-id ":" (keys task-datas))
         (doseq [[task-id task-data] task-datas
                 :let [^ISpout spout-obj (:object task-data)
@@ -493,6 +494,10 @@
                                          (or out-tasks [])
                                          ))]]
           (builtin-metrics/register-all (:builtin-metrics task-data) storm-conf (:user-context task-data))
+          (builtin-metrics/register-queue-metrics {:sendqueue (:batch-transfer-queue executor-data)
+                                                   :receive receive-queue}
+                                                  storm-conf (:user-context task-data))
+
           (.open spout-obj
                  storm-conf
                  (:user-context task-data)
@@ -501,22 +506,21 @@
                     (^List emit [this ^String stream-id ^List tuple ^Object message-id]
                       (send-spout-msg stream-id tuple message-id nil)
                       )
-                    (^void emitDirect [this ^int out-task-id ^String stream-id
+		                          (^void emitDirect [this ^int out-task-id ^String stream-id
                                        ^List tuple ^Object message-id]
                       (send-spout-msg stream-id tuple message-id out-task-id)
                       )
                     (reportError [this error]
                       (report-error error)
                       )))))
-        (reset! open-or-prepare-was-called? true) 
+        (reset! open-or-prepare-was-called? true)
         (log-message "Opened spout " component-id ":" (keys task-datas))
         (setup-metrics! executor-data)
-        
+
         (disruptor/consumer-started! (:receive-queue executor-data))
         (fn []
           ;; This design requires that spouts be non-blocking
           (disruptor/consume-batch receive-queue event-handler)
-          
           ;; try to clear the overflow-buffer
           (try-cause
             (while (not (.isEmpty overflow-buffer))
@@ -525,7 +529,7 @@
                 (.removeFirst overflow-buffer)))
           (catch InsufficientCapacityException e
             ))
-          
+
           (let [active? @(:storm-active-atom executor-data)
                 curr-count (.get emitted-count)]
             (if (and (.isEmpty overflow-buffer)
@@ -537,7 +541,7 @@
                     (reset! last-active true)
                     (log-message "Activating spout " component-id ":" (keys task-datas))
                     (fast-list-iter [^ISpout spout spouts] (.activate spout)))
-               
+
                   (fast-list-iter [^ISpout spout spouts] (.nextTuple spout)))
                 (do
                   (when @last-active
@@ -550,7 +554,7 @@
               (do (.increment empty-emit-streak)
                   (.emptyEmit spout-wait-strategy (.get empty-emit-streak)))
               (.set empty-emit-streak 0)
-              ))           
+              ))
           0))
       :kill-fn (:report-error-and-die executor-data)
       :factory? true
@@ -560,7 +564,7 @@
   (let [ms (.getProcessSampleStartTime tuple)]
     (if ms
       (time-delta-ms ms))))
-      
+
 (defn- tuple-execute-time-delta! [^TupleImpl tuple]
   (let [ms (.getExecuteSampleStartTime tuple)]
     (if ms
@@ -590,8 +594,7 @@
                           ;; TODO: for state sync, need to check if tuple comes from state spout. if so, update state
                           ;; TODO: how to handle incremental updates as well as synchronizations at same time
                           ;; TODO: need to version tuples somehow
-                          
- 
+
                           ;;(log-debug "Received tuple " tuple " at task " task-id)
                           ;; need to do it this way to avoid reflection
                           (let [stream-id (.getSourceStreamId tuple)]
@@ -613,22 +616,22 @@
                                   (when delta
                                     (builtin-metrics/bolt-execute-tuple! (:builtin-metrics task-data)
                                                                          executor-stats
-                                                                         (.getSourceComponent tuple)                                                      
+                                                                         (.getSourceComponent tuple)
                                                                          (.getSourceStreamId tuple)
                                                                          delta)
                                     (stats/bolt-execute-tuple! executor-stats
                                                                (.getSourceComponent tuple)
                                                                (.getSourceStreamId tuple)
                                                                delta)))))))]
-    
+
     ;; TODO: can get any SubscribedState objects out of the context now
 
     [(async-loop
       (fn []
         ;; If topology was started in inactive state, don't call prepare bolt until it's activated first.
-        (while (not @(:storm-active-atom executor-data))          
+        (while (not @(:storm-active-atom executor-data))
           (Thread/sleep 100))
-        
+
         (log-message "Preparing bolt " component-id ":" (keys task-datas))
         (doseq [[task-id task-data] task-datas
                 :let [^IBolt bolt-obj (:object task-data)
@@ -656,6 +659,16 @@
                                                                                (MessageId/makeId anchors-to-ids)))))
                                     (or out-tasks [])))]]
           (builtin-metrics/register-all (:builtin-metrics task-data) storm-conf user-context)
+          (if (= component-id Constants/SYSTEM_COMPONENT_ID)
+            (builtin-metrics/register-queue-metrics {:sendqueue (:batch-transfer-queue executor-data)
+                                                     :receive (:receive-queue executor-data)
+                                                     :transfer (:transfer-queue (:worker executor-data))}
+                                                    storm-conf user-context)
+            (builtin-metrics/register-queue-metrics {:sendqueue (:batch-transfer-queue executor-data)
+                                                     :receive (:receive-queue executor-data)}
+                                                    storm-conf user-context)
+            )
+
           (.prepare bolt-obj
                     storm-conf
                     user-context
@@ -678,7 +691,7 @@
                            (when delta
                              (builtin-metrics/bolt-acked-tuple! (:builtin-metrics task-data)
                                                                 executor-stats
-                                                                (.getSourceComponent tuple)                                                      
+                                                                (.getSourceComponent tuple)
                                                                 (.getSourceStreamId tuple)
                                                                 delta)
                              (stats/bolt-acked-tuple! executor-stats
@@ -695,7 +708,7 @@
                            (when delta
                              (builtin-metrics/bolt-failed-tuple! (:builtin-metrics task-data)
                                                                  executor-stats
-                                                                 (.getSourceComponent tuple)                                                      
+                                                                 (.getSourceComponent tuple)
                                                                  (.getSourceStreamId tuple))
                              (stats/bolt-failed-tuple! executor-stats
                                                        (.getSourceComponent tuple)
@@ -704,14 +717,14 @@
                        (reportError [this error]
                          (report-error error)
                          )))))
-        (reset! open-or-prepare-was-called? true)        
+        (reset! open-or-prepare-was-called? true)
         (log-message "Prepared bolt " component-id ":" (keys task-datas))
         (setup-metrics! executor-data)
 
         (let [receive-queue (:receive-queue executor-data)
               event-handler (mk-task-receiver executor-data tuple-action-fn)]
           (disruptor/consumer-started! receive-queue)
-          (fn []            
+          (fn []
             (disruptor/consume-batch-when-available receive-queue event-handler)
             0)))
       :kill-fn (:report-error-and-die executor-data)
