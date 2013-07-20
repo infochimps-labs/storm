@@ -5,6 +5,7 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.IBasicBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.utils.Utils;
 import storm.trident.topology.TransactionAttempt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
@@ -45,6 +46,9 @@ public class TridentSpoutCoordinator implements IBasicBolt {
     public void execute(Tuple tuple, BasicOutputCollector collector) {
         TransactionAttempt attempt = (TransactionAttempt) tuple.getValue(0);
 
+        // if (LOG.isTraceEnabled())
+        //     LOG.trace(Utils.logString("TridentSpoutCoordinator.execute:beg", _compId, "id", _id, "tuple", tuple.toString()) );
+
         if(tuple.getSourceStreamId().equals(MasterBatchCoordinator.SUCCESS_STREAM_ID)) {
             _state.cleanupBefore(attempt.getTransactionId());
             _coord.success(attempt.getTransactionId());
@@ -53,7 +57,12 @@ public class TridentSpoutCoordinator implements IBasicBolt {
             Object prevMeta = _state.getPreviousState(txid);
             Object meta = _coord.initializeTransaction(txid, prevMeta, _state.getState(txid));
             _state.overrideState(txid, meta);
+
             collector.emit(MasterBatchCoordinator.BATCH_STREAM_ID, new Values(attempt, meta));
+
+           // if(LOG.isTraceEnabled() && Utils.isTraceSampled(1) )
+           //     LOG.trace(Utils.logString("TridentSpoutCoordinator.execute:emits", _compId, ""+txid+":"+attempt,
+           //             "id", _id, "tuple", tuple.toString(), "meta", meta.toString()));
         }
                 
     }

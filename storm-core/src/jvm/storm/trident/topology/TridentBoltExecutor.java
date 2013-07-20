@@ -27,9 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.lang.builder.ToStringBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import storm.trident.spout.IBatchID;
 
 public class TridentBoltExecutor implements IRichBolt {
+    public static final Logger LOG = LoggerFactory.getLogger(TridentBoltExecutor.class);
+
     public static String COORD_STREAM_PREFIX = "$coord-";
 
     String _id = "";
@@ -234,15 +238,29 @@ public class TridentBoltExecutor implements IRichBolt {
     }
 
     private boolean finishBatch(TrackedBatch tracked, Tuple finishTuple) {
+       // if(LOG.isTraceEnabled() && Utils.isTraceSampled(frequency) )
+       //     LOG.trace(Utils.logString("TridentBolt.finishBatch:beg", _id, tracked.info.batchId,
+       //         "from", finishTuple.getSourceComponent(), "t", finishTuple.toString()));
+
         boolean success = true;
         try {
             _bolt.finishBatch(tracked.info);
             String stream = COORD_STREAM(tracked.info.batchGroup);
             for(Integer task: tracked.condition.targetTasks) {
                 _collector.emitDirect(task, stream, finishTuple, new Values(tracked.info.batchId, Utils.get(tracked.taskEmittedTuples, task, 0)));
+
+                if (LOG.isTraceEnabled() && Utils.isTraceSampled(1000))
+                    LOG.trace(Utils.logString("TridentBolt.batch>emit:" + stream, _id, ""+tracked.info.batchId,
+                            "#", String.format("%5d", Utils.get(tracked.taskEmittedTuples, task, 0)), "to", ""+task));
+
             }
             if(tracked.delayedAck!=null) {
                 _collector.ack(tracked.delayedAck);
+
+                if (LOG.isTraceEnabled() && (MasterBatchCoordinator.COMMIT_STREAM_ID.equals(tracked.delayedAck.getSourceStreamId())))
+                    LOG.trace(Utils.logString("TridentBolt.batch>dlack:" + stream, _id, ""+tracked.info.batchId,
+                            ""+tracked.delayedAck.getSourceStreamId(), "t", tracked.delayedAck.toString()));
+
                 tracked.delayedAck = null;
             }
         } catch(FailedException e) {
@@ -274,6 +292,10 @@ public class TridentBoltExecutor implements IRichBolt {
                 //TODO: add logging that not all tuples were received
                 failBatch(tracked);
                 _collector.fail(tuple);
+
+                if(LOG.isTraceEnabled())
+                    LOG.trace(Utils.logString("TridentBolt.checkFinish:fails", _id, "", "t", tuple.toString()));
+
                 failed = true;
             }
         }
@@ -299,8 +321,11 @@ public class TridentBoltExecutor implements IRichBolt {
             // this is so we can do things like have simple DRPC that doesn't need to use batch processing
             _coordCollector.setCurrBatch(null);
             _bolt.execute(null, tuple);
-
             _collector.ack(tuple);
+
+            // if (LOG.isTraceEnabled())
+            //     LOG.trace(Utils.logString("TridentBolt.execute:acks", _id, "", "t", tuple.toString()));
+
             return;
         }
         IBatchID id = (IBatchID) tuple.getValue(0);
@@ -308,17 +333,6 @@ public class TridentBoltExecutor implements IRichBolt {
         //if it already exissts and attempt id is greater than the attempt there
         
         TrackedBatch tracked = (TrackedBatch) _batches.get(id.getId());
-//        if(_batches.size() > 10 && _context.getThisTaskIndex() == 0) {
-//            System.out.println("Received in " + _context.getThisComponentId() + " " + _context.getThisTaskIndex()
-//                    + " (" + _batches.size() + ")" +
-//                    "\ntuple: " + tuple +
-//                    "\nwith tracked " + tracked +
-//                    "\nwith id " + id + 
-//                    "\nwith group " + batchGroup
-//                    + "\n");
-//            
-//        }
-        //System.out.println("Num tracked: " + _batches.size() + " " + _context.getThisComponentId() + " " + _context.getThisTaskIndex());
         
         // this code here ensures that only one attempt is ever tracked for a batch, so when
         // failures happen you don't get an explosion in memory usage in the tasks
@@ -337,7 +351,9 @@ public class TridentBoltExecutor implements IRichBolt {
             _batches.put(id.getId(), tracked);
         }
         _coordCollector.setCurrBatch(tracked);
-        //System.out.println("TRACKED: " + tracked + " " + tuple);
+
+        // if(LOG.isTraceEnabled())
+        //     LOG.trace(Utils.logString("TridentBolt.execute:gets", _id, "", "t", tuple.toString(), "TRACKED ", tracked.toString()));
 
         TupleType t = getTupleType(tuple, tracked);
 
@@ -408,7 +424,7 @@ public class TridentBoltExecutor implements IRichBolt {
         REGULAR,
         COMMIT,
         COORD
-    }
+    }    
 
     @Override
     public String toString() {

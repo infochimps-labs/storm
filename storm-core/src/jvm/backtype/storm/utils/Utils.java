@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.Random;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.thrift7.TException;
 import org.json.simple.JSONValue;
@@ -392,6 +394,33 @@ public class Utils {
             }
             t = t.getCause();
         }
+        return false;
+    }
+
+    // Uniformly formatted progress statements
+    public static String logString(String componentAction, String componentId, String batchId, String... vals) {
+        String shortBatchId     = (batchId.length()     <=  7 ? batchId     : batchId.substring(0,7));
+        String shortComponentId = (componentId.length() <= 13 ? componentId : componentId.substring(0, 13));
+
+        StringBuilder extraInfo = new StringBuilder();
+        if (vals.length == 0) { extraInfo.append("\t|"); }
+        for (int i = 0; i < vals.length;) {
+            extraInfo.append("\t| ");
+            extraInfo.append(vals[i]);
+            if (i + 1 < vals.length) {
+                extraInfo.append("=");
+                extraInfo.append(vals[i + 1]);
+            }
+            i += 2;
+        }
+
+        return String.format("%7s | %-21s\t| %-13s%s",
+            shortBatchId, componentAction, shortComponentId, extraInfo.toString());
+    }
+
+    private static Random tracerRandom = new Random(0L);
+    public static boolean isTraceSampled(int invFreq){
+        if (tracerRandom.nextInt(invFreq) == 1) return true;
         return false;
     }
 }

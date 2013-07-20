@@ -7,6 +7,7 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 import backtype.storm.utils.WindowedTimeThrottler;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,11 +21,10 @@ import org.slf4j.LoggerFactory;
 import storm.trident.spout.ITridentSpout;
 import storm.trident.topology.state.TransactionalState;
 
-public class MasterBatchCoordinator extends BaseRichSpout {
+public class MasterBatchCoordinator extends BaseRichSpout { 
     public static final Logger LOG = LoggerFactory.getLogger(MasterBatchCoordinator.class);
-
-    public static final long INIT_TXID = 1L;
     
+    public static final long INIT_TXID = 1L;
     
     public static final String BATCH_STREAM_ID = "$batch";
     public static final String COMMIT_STREAM_ID = "$commit";
@@ -91,6 +91,8 @@ public class MasterBatchCoordinator extends BaseRichSpout {
         
         for(int i=0; i<_spouts.size(); i++) {
             String txId = _managedSpoutIds.get(i);
+            LOG.info(Utils.logString("open:spout", _id, txId));
+
             _coordinators.add(_spouts.get(i).getCoordinator(txId, conf, context));
         }
     }
@@ -112,6 +114,9 @@ public class MasterBatchCoordinator extends BaseRichSpout {
         TransactionAttempt tx = (TransactionAttempt) msgId;
         TransactionStatus status = _activeTx.get(tx.getTransactionId());
 
+       // if (LOG.isTraceEnabled())
+       //     LOG.trace(Utils.logString("MasterBatchCoord.ack", _id, tx.toString()));
+
         if(status!=null && tx.equals(status.attempt)) {
             if(status.status==AttemptStatus.PROCESSING) {
                 status.status = AttemptStatus.PROCESSED;
@@ -119,7 +124,9 @@ public class MasterBatchCoordinator extends BaseRichSpout {
                 _activeTx.remove(tx.getTransactionId());
                 _attemptIds.remove(tx.getTransactionId());
                 _collector.emit(SUCCESS_STREAM_ID, new Values(tx));
-
+                if(LOG.isTraceEnabled())
+                    LOG.trace(Utils.logString("MasterBatchCoord.ack:"+SUCCESS_STREAM_ID, _id, tx.toString(),
+                            "is", SUCCESS_STREAM_ID ));
                 _currTransaction = nextTransactionId(tx.getTransactionId());
                 for(TransactionalState state: _states) {
                     state.setData(CURRENT_TX, _currTransaction);                    
@@ -135,6 +142,8 @@ public class MasterBatchCoordinator extends BaseRichSpout {
         TransactionStatus stored = _activeTx.remove(tx.getTransactionId());
         if(stored!=null && tx.equals(stored.attempt)) {
             _activeTx.tailMap(tx.getTransactionId()).clear();
+            if(LOG.isTraceEnabled() )
+                LOG.trace(Utils.logString("MasterBatchCoord.fail", _id, tx.toString()));
             sync();
         }
     }
@@ -157,6 +166,8 @@ public class MasterBatchCoordinator extends BaseRichSpout {
         if(maybeCommit!=null && maybeCommit.status == AttemptStatus.PROCESSED) {
             maybeCommit.status = AttemptStatus.COMMITTING;
             _collector.emit(COMMIT_STREAM_ID, new Values(maybeCommit.attempt), maybeCommit.attempt);
+            if (LOG.isTraceEnabled())
+                LOG.trace(Utils.logString("MasterBatchCoord.emits:"+COMMIT_STREAM_ID, _id, maybeCommit.attempt.toString(), "is", COMMIT_STREAM_ID));
         }
         
         if(_active) {
@@ -181,6 +192,8 @@ public class MasterBatchCoordinator extends BaseRichSpout {
                         TransactionAttempt attempt = new TransactionAttempt(curr, attemptId);
                         _activeTx.put(curr, new TransactionStatus(attempt));
                         _collector.emit(BATCH_STREAM_ID, new Values(attempt), attempt);
+                        if (LOG.isTraceEnabled())
+                            LOG.trace(Utils.logString("MasterBatchCoord.emits:"+BATCH_STREAM_ID, _id, attempt.toString(), "is", BATCH_STREAM_ID));
                         _throttler.markEvent();
                     }
                     curr = nextTransactionId(curr);
