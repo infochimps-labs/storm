@@ -10,8 +10,13 @@ import com.lmax.disruptor.Sequence;
 import com.lmax.disruptor.SequenceBarrier;
 import com.lmax.disruptor.SingleThreadedClaimStrategy;
 import com.lmax.disruptor.WaitStrategy;
+
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
+
+import backtype.storm.metric.api.IStatefulObject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,7 +25,8 @@ import java.util.logging.Logger;
  * A single consumer queue that uses the LMAX Disruptor. They key to the performance is
  * the ability to catch up to the producer by processing tuples in batches.
  */
-public class DisruptorQueue {
+public class DisruptorQueue implements IStatefulObject {
+
     static final Object FLUSH_CACHE = new Object();
     static final Object INTERRUPT = new Object();
     
@@ -64,18 +70,17 @@ public class DisruptorQueue {
         }
     }
     
-    
-    private void consumeBatchToCursor(long cursor, EventHandler<Object> handler) {
-        for(long curr = _consumer.get() + 1; curr <= cursor; curr++) {
+    protected void consumeBatchToCursor(long cursor, EventHandler<Object> handler) {
+        for (long curr = _consumer.get() + 1; curr <= cursor; curr++) {
             try {
                 MutableObject mo = _buffer.get(curr);
                 Object o = mo.o;
                 mo.setObject(null);
                 if(o==FLUSH_CACHE) {
                     Object c = null;
-                    while(true) {                        
+                    while(true) {
                         c = _cache.poll();
-                        if(c==null) break;
+                        if (c==null) break;
                         else handler.onEvent(c, curr, true);
                     }
                 } else if(o==INTERRUPT) {
@@ -105,7 +110,7 @@ public class DisruptorQueue {
     public void tryPublish(Object obj) throws InsufficientCapacityException {
         publish(obj, false);
     }
-    
+
     public void publish(Object obj, boolean block) throws InsufficientCapacityException {
         if(consumerStartedFlag) {
             final long id;
@@ -117,6 +122,7 @@ public class DisruptorQueue {
             final MutableObject m = _buffer.get(id);
             m.setObject(obj);
             _buffer.publish(id);
+
         } else {
             _cache.add(obj);
             if(consumerStartedFlag) flushCache();
@@ -134,10 +140,26 @@ public class DisruptorQueue {
         publish(FLUSH_CACHE);
     }
 
+    public long  population() { return (writePos() - readPos()); }
+    public long  capacity()   { return _buffer.getBufferSize(); }
+    public long  writePos()   { return _buffer.getCursor(); }
+    public long  readPos()    { return _consumer.get(); }
+    public float pctFull()    { return (1.0F * population() / capacity()); }
+
+    @Override
+    public Object getState() {
+        Map state = new HashMap<String, Object>();
+        state.put("capacity",   capacity());
+        state.put("population", population());
+        state.put("write_pos",  writePos());
+        state.put("read_pos",   readPos());
+        return state;
+    }
+
     public static class ObjectEventFactory implements EventFactory<MutableObject> {
         @Override
         public MutableObject newInstance() {
             return new MutableObject();
-        }        
+        }
     }
 }
