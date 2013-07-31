@@ -40,10 +40,12 @@
              :lib {}
              }
 
-  :plugins [[lein-swank "1.4.4"]]
+  :plugins [[lein-swank "1.4.4"]
+            [s3-wagon-private "1.1.2"]]
 
-  :repositories {"sonatype"
-                 "http://oss.sonatype.org/content/groups/public/"}
+  :repositories {"sonatype" "http://oss.sonatype.org/content/groups/public/"
+                 "releases" {:url "s3p://artifacts.chimpy.us/maven-s3p/releases/" :creds :gpg}
+                 "snapshots" {:url "s3p://artifacts.chimpy.us/maven-s3p/snapshots/" :creds :gpg}}
 
   :javac-options ["-g"]
   :jvm-opts ["-Djava.library.path=/usr/local/lib:/opt/local/lib:/usr/lib"]
