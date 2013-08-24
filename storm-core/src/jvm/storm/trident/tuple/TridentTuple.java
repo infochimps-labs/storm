@@ -5,6 +5,15 @@ import java.util.List;
 import java.util.Map;
 
 public interface TridentTuple extends List<Object> {
+
+    // Restrict the allowed annotations to these keys
+    public static enum AnnotationKeys {
+        SOURCE_COMPONENT, SOURCE_TASK, SOURCE_STREAM, PARENT_STREAMS, PROCESSORS
+    }
+
+    public static String TRACER_EMIT_FREQ = "trident.tracer.tuple.emit.freq";
+    public static Long DEFAULT_TRACER_EMIT_FREQ = 1000000l;
+    
     public static interface Factory extends Serializable {
         Map<String, ValuePointer> getFieldIndex();
         List<String> getOutputFields();
@@ -52,4 +61,16 @@ public interface TridentTuple extends List<Object> {
     Float getFloatByField(String field);
     
     byte[] getBinaryByField(String field);
+
+    void makeTraceable();
+    
+    void makeUntraceable();
+    
+    boolean isTraceable();
+
+    void annotate(AnnotationKeys key, Object value);
+
+    Object getAnnotation(AnnotationKeys key);
+
+    Map<AnnotationKeys, Object> getAnnotations();
 }
