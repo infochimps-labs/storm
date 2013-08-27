@@ -14,19 +14,17 @@ public class TridentContext {
     List<TupleReceiver> receivers;
     String outStreamId;
     int stateIndex;
-    long tracerEmitFreq;
     BatchOutputCollector collector;
     
     public TridentContext(Fields selfFields, List<Factory> parentFactories,
             List<String> parentStreams, List<TupleReceiver> receivers, 
-                          String outStreamId, int stateIndex, long tracerEmitFreq, BatchOutputCollector collector) {
+            String outStreamId, int stateIndex, BatchOutputCollector collector) {
         this.selfFields = selfFields;
         this.parentFactories = parentFactories;
         this.parentStreams = parentStreams;
         this.receivers = receivers;
         this.outStreamId = outStreamId;
         this.stateIndex = stateIndex;
-        this.tracerEmitFreq = tracerEmitFreq;
         this.collector = collector;        
     }
     
@@ -52,10 +50,6 @@ public class TridentContext {
     
     public int getStateIndex() {
         return stateIndex;
-    }
-
-    public long getTracerEmitFreq() {
-        return tracerEmitFreq;
     }
     
     //for reporting errors

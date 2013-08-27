@@ -61,33 +61,18 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     public static class FreshOutputFactory  implements Factory {
         Map<String, ValuePointer> _fieldIndex;
         ValuePointer[] _index;
-        Long _tracerEmitFreq;
-        Long _numCreated;
-
-        public FreshOutputFactory(Fields selfFields) {
-            this(selfFields, -1l); // Don't emit tracers
-        }
         
-        public FreshOutputFactory(Fields selfFields, Long tracerEmitFreq) {
+        public FreshOutputFactory(Fields selfFields) {
             _fieldIndex = new HashMap<String, ValuePointer>();
             for(int i=0; i<selfFields.size(); i++) {
                 String field = selfFields.get(i);
                 _fieldIndex.put(field, new ValuePointer(0, i, field));
             }
             _index = ValuePointer.buildIndex(selfFields, _fieldIndex);
-            _tracerEmitFreq = tracerEmitFreq;
-            _numCreated = 0l;
         }
 
         public TridentTuple create(List<Object> selfVals) {
-            TridentTupleView result;
-            if (_tracerEmitFreq > 0 && _numCreated % _tracerEmitFreq == 0) {
-                result = new TridentTupleView(PersistentVector.EMPTY.cons(selfVals), _index, _fieldIndex, true);
-            } else {
-                result = new TridentTupleView(PersistentVector.EMPTY.cons(selfVals), _index, _fieldIndex);
-            }
-            _numCreated += 1l;
-            return result;
+            return new TridentTupleView(PersistentVector.EMPTY.cons(selfVals), _index, _fieldIndex);
         }
         
         @Override
@@ -159,14 +144,8 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     public static class RootFactory implements Factory {
         ValuePointer[] index;
         Map<String, ValuePointer> fieldIndex;
-        Long _tracerEmitFreq;
-        Long _numCreated;
 
         public RootFactory(Fields inputFields) {
-            this(inputFields, -1l);
-        }
-        
-        public RootFactory(Fields inputFields, Long tracerEmitFreq) {
             index = new ValuePointer[inputFields.size()];
             int i=0;
             for(String f: inputFields) {
@@ -174,31 +153,10 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
                 i++;
             }
             fieldIndex = ValuePointer.buildFieldIndex(index);
-            _tracerEmitFreq = tracerEmitFreq;
-            _numCreated = 0l;
         }
         
         public TridentTuple create(Tuple parent) {
-            TridentTuple result;
-            if (_tracerEmitFreq > 0 && _numCreated % _tracerEmitFreq == 0) {
-                result = createTraceable(parent);
-            } else {
-                result = new TridentTupleView(PersistentVector.EMPTY.cons(parent.getValues()), index, fieldIndex);
-            }
-            _numCreated += 1l;
-            return result;
-        }
-
-        public TridentTuple createTraceable(Tuple parent) {
-            TridentTupleView traceable = new TridentTupleView(PersistentVector.EMPTY.cons(parent.getValues()), index, fieldIndex, true);
-
-            traceable.annotate(TridentTuple.AnnotationKeys.SOURCE_COMPONENT, parent.getSourceComponent());
-            traceable.annotate(TridentTuple.AnnotationKeys.SOURCE_TASK, parent.getSourceTask());
-            traceable.annotate(TridentTuple.AnnotationKeys.SOURCE_STREAM, parent.getSourceStreamId());
-            traceable.annotate(TridentTuple.AnnotationKeys.PARENT_STREAMS, new ArrayList<String>());
-            traceable.annotate(TridentTuple.AnnotationKeys.PROCESSORS, new ArrayList<String>());
-            
-            return traceable;
+            return new TridentTupleView(PersistentVector.EMPTY.cons(parent.getValues()), index, fieldIndex);
         }
 
         @Override

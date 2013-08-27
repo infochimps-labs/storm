@@ -1,5 +1,6 @@
 package storm.trident.planner.processor;
 
+import java.util.Map;
 import java.util.List;
 import storm.trident.operation.TridentCollector;
 import storm.trident.planner.ProcessorContext;
@@ -28,7 +29,18 @@ public class AppendCollector implements TridentCollector {
 
     @Override
     public void emit(List<Object> values) {
+        emitWithMetadata(values, null);
+    }
+
+    @Override
+    public void emitWithMetadata(List<Object> values, Map<TridentTuple.AnnotationKeys,Object> metadata) {
         TridentTuple toEmit = _factory.create((TridentTupleView) tuple, values);
+        if (metadata != null) {
+            toEmit.makeTraceable();
+            for (Map.Entry<TridentTuple.AnnotationKeys, Object> meta : metadata.entrySet()) {
+                toEmit.annotate(meta.getKey(), meta.getValue());
+            }
+        }
         for(TupleReceiver r: _triContext.getReceivers()) {
             r.execute(context, _triContext.getOutStreamId(), toEmit);
         }

@@ -1,6 +1,8 @@
 package storm.trident.operation.impl;
 
 import java.util.List;
+import java.util.Map;
+import storm.trident.tuple.TridentTuple;
 import storm.trident.operation.TridentCollector;
 import storm.trident.tuple.ComboList;
 
@@ -21,6 +23,11 @@ public class GroupCollector implements TridentCollector {
         delegates[0] = currGroup;
         delegates[1] = values;
         _collector.emit(_factory.create(delegates));
+    }
+
+    @Override
+    public void emitWithMetadata(List<Object> values, Map<TridentTuple.AnnotationKeys, Object> metadata) {
+        // no-op
     }
 
     @Override
