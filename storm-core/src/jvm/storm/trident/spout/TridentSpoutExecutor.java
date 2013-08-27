@@ -18,6 +18,7 @@ import storm.trident.topology.BatchInfo;
 import storm.trident.topology.ITridentBatchBolt;
 import storm.trident.topology.MasterBatchCoordinator;
 import storm.trident.tuple.TridentTuple;
+import storm.trident.tuple.MetadataMap;
 import storm.trident.tuple.ConsList;
 
 public class TridentSpoutExecutor implements ITridentBatchBolt {
@@ -115,7 +116,7 @@ public class TridentSpoutExecutor implements ITridentBatchBolt {
         }
 
         @Override
-        public void emitWithMetadata(List<Object> values, Map<TridentTuple.AnnotationKeys, Object> metadata) {
+        public void emit(List<Object> values, MetadataMap metadata) {
             // no-op
         }
         

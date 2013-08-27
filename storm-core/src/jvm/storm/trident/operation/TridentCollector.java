@@ -3,10 +3,10 @@ package storm.trident.operation;
 import java.util.Map;
 import java.util.List;
 
-import storm.trident.tuple.TridentTuple;
+import storm.trident.tuple.MetadataMap;
 
 public interface TridentCollector {
     void emit(List<Object> values);
-    void emitWithMetadata(List<Object> values, Map<TridentTuple.AnnotationKeys, Object> metadata);
+    void emit(List<Object> values, MetadataMap metadata);
     void reportError(Throwable t);
 }

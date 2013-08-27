@@ -3,7 +3,7 @@ package storm.trident.operation.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import storm.trident.tuple.TridentTuple;
+import storm.trident.tuple.MetadataMap;
 import storm.trident.operation.TridentCollector;
 
 public class CaptureCollector implements TridentCollector {
@@ -21,7 +21,7 @@ public class CaptureCollector implements TridentCollector {
     }
 
     @Override
-    public void emitWithMetadata(List<Object> values, Map<TridentTuple.AnnotationKeys, Object> metadata) {
+    public void emit(List<Object> values, MetadataMap metadata) {
         // no-op
     }
 

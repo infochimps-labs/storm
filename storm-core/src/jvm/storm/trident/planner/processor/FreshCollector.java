@@ -6,6 +6,7 @@ import storm.trident.operation.TridentCollector;
 import storm.trident.planner.ProcessorContext;
 import storm.trident.planner.TupleReceiver;
 import storm.trident.tuple.TridentTuple;
+import storm.trident.tuple.MetadataMap;
 import storm.trident.tuple.TridentTuple.Factory;
 import storm.trident.tuple.TridentTupleView.FreshOutputFactory;
 
@@ -33,13 +34,10 @@ public class FreshCollector implements TridentCollector {
     }
 
     @Override
-    public void emitWithMetadata(List<Object> values, Map<TridentTuple.AnnotationKeys, Object> metadata) {
+    public void emit(List<Object> values, MetadataMap metadata) {
         TridentTuple toEmit = _factory.create(values);
         if (metadata != null) {
-            toEmit.makeTraceable();
-            for (Map.Entry<TridentTuple.AnnotationKeys, Object> meta : metadata.entrySet()) {
-                toEmit.annotate(meta.getKey(), meta.getValue());
-            }
+            toEmit.getMetadataMap().putAll(metadata);
         }
         for(TupleReceiver r: _triContext.getReceivers()) {
             r.execute(context, _triContext.getOutStreamId(), toEmit);

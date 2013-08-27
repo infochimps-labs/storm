@@ -18,8 +18,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     ValuePointer[] _index;
     Map<String, ValuePointer> _fieldIndex;
     IPersistentVector _delegates;
-    Map<TridentTuple.AnnotationKeys, Object> _metadata;
-    boolean _isTraceable;
+    MetadataMap _metadata;
 
     public static class ProjectionFactory implements Factory {
         Map<String, ValuePointer> _fieldIndex;
@@ -39,7 +38,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
         
         public TridentTuple create(TridentTuple parent) {
             if(_index.length==0) return EMPTY_TUPLE;
-            else return new TridentTupleView(((TridentTupleView)parent)._delegates, _index, _fieldIndex, parent.isTraceable(), parent.getAnnotations());
+            else return new TridentTupleView(((TridentTupleView)parent)._delegates, _index, _fieldIndex, parent.getMetadataMap());
         }
 
         @Override
@@ -122,7 +121,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
         public TridentTuple create(TridentTupleView parent, List<Object> selfVals) {
             IPersistentVector curr = parent._delegates;
             curr = (IPersistentVector) RT.conj(curr, selfVals);
-            return new TridentTupleView(curr, _index, _fieldIndex, parent.isTraceable(), parent.getAnnotations());
+            return new TridentTupleView(curr, _index, _fieldIndex, parent.getMetadataMap());
         }
 
         @Override
@@ -187,18 +186,13 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
 
     // index and fieldIndex are precomputed, delegates built up over many operations using persistent data structures    
     public TridentTupleView(IPersistentVector delegates, ValuePointer[] index, Map<String, ValuePointer> fieldIndex) {
-        this(delegates, index, fieldIndex, false);
+        this(delegates, index, fieldIndex, new MetadataMap());
     }
     
-    public TridentTupleView(IPersistentVector delegates, ValuePointer[] index, Map<String, ValuePointer> fieldIndex, boolean isTraceable) {
-        this(delegates, index, fieldIndex, isTraceable, new java.util.EnumMap<TridentTuple.AnnotationKeys,Object>(TridentTuple.AnnotationKeys.class));
-    }
-
-    public TridentTupleView(IPersistentVector delegates, ValuePointer[] index, Map<String, ValuePointer> fieldIndex, boolean isTraceable, Map<TridentTuple.AnnotationKeys,Object> metadata) {
+    public TridentTupleView(IPersistentVector delegates, ValuePointer[] index, Map<String, ValuePointer> fieldIndex, MetadataMap metadata) {
         _delegates = delegates;
         _index = index;
         _fieldIndex = fieldIndex;
-        _isTraceable = isTraceable;
         _metadata = metadata;
     }
 
@@ -318,35 +312,15 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     }
 
     @Override
-    public void makeTraceable() {
-        _isTraceable = true;
-    }
-
-    @Override
-    public void makeUntraceable() {
-        _isTraceable = false;
-    }
-
-    @Override
     public boolean isTraceable() {
-        return _isTraceable;
+        return _metadata.isTraceable();
     }
 
     @Override
-    public void annotate(TridentTuple.AnnotationKeys key, Object value) {
-        _metadata.put(key, value);
-    }
-
-    @Override
-    public Object getAnnotation(TridentTuple.AnnotationKeys key) {
-        return _metadata.get(key);
-    }
-
-    @Override
-    public Map<TridentTuple.AnnotationKeys, Object> getAnnotations() {
+    public MetadataMap getMetadataMap() {
         return _metadata;
     }
-    
+        
     private Object getValueByPointer(ValuePointer ptr) {
         return ((List<Object>)_delegates.nth(ptr.delegateIndex)).get(ptr.index);     
     }
