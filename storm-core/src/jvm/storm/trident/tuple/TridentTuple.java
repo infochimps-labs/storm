@@ -57,4 +57,11 @@ public interface TridentTuple extends List<Object> {
     boolean isTraceable();
 
     MetadataMap getMetadataMap();
+
+    // Trace methods
+    void addTraceEntry(TraceEntry entry);
+
+    TraceEntry getTraceEntry(Integer index);
+
+    List<TraceEntry> getTrace();
 }

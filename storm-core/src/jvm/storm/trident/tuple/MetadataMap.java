@@ -2,6 +2,8 @@ package storm.trident.tuple;
 
 import java.util.Set;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collection;
 
@@ -16,9 +18,30 @@ public class MetadataMap implements Map<String,Object> {
         _metadata = new HashMap<String, Object>();
     }
 
+    private void initializeTraceIfNotInitialized() {
+        if (!containsKey(TRACE_HISTORY)) {
+            _metadata.put(TRACE_HISTORY, new ArrayList<TraceEntry>());
+        }
+    }
+    
     public boolean isTraceable() {
         Object value = get(IS_TRACEABLE);
         return (value != null && (Boolean)value == true); 
+    }
+
+    public void addTraceEntry(TraceEntry entry) {
+        initializeTraceIfNotInitialized();
+        getTrace().add(entry);        
+    }
+
+    public TraceEntry getTraceEntry(Integer index) {
+        initializeTraceIfNotInitialized();
+        return getTrace().get(index);
+    }
+
+    public List<TraceEntry> getTrace() {
+        initializeTraceIfNotInitialized();
+        return (List<TraceEntry>)_metadata.get(TRACE_HISTORY);
     }
     
     @Override

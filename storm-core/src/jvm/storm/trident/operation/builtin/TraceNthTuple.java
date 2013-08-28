@@ -49,10 +49,11 @@ public class TraceNthTuple implements Assembly {
                 MetadataMap metadata = tuple.getMetadataMap();
                 metadata.put("is_traceable", true);
                 
-                collector.emit(null,metadata);
+                collector.emit(null,metadata);                
             } else {
                 collector.emit(null);
             }
+            _numTuples += 1l;
         }
     }
 }

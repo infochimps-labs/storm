@@ -320,6 +320,21 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     public MetadataMap getMetadataMap() {
         return _metadata;
     }
+
+    @Override
+    public void addTraceEntry(TraceEntry entry) {
+        _metadata.addTraceEntry(entry);
+    }
+
+    @Override
+    public TraceEntry getTraceEntry(Integer index) {
+        return _metadata.getTraceEntry(index);
+    }
+
+    @Override
+    public List<TraceEntry> getTrace() {
+        return _metadata.getTrace();
+    }
         
     private Object getValueByPointer(ValuePointer ptr) {
         return ((List<Object>)_delegates.nth(ptr.delegateIndex)).get(ptr.index);     
