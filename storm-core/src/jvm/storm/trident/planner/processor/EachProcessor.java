@@ -8,6 +8,7 @@ import storm.trident.operation.Function;
 import storm.trident.operation.TridentOperationContext;
 import storm.trident.planner.ProcessorContext;
 import storm.trident.planner.TridentProcessor;
+import storm.trident.tuple.TraceEntry;
 import storm.trident.tuple.TridentTuple;
 import storm.trident.tuple.TridentTuple.Factory;
 import storm.trident.tuple.TridentTupleView.ProjectionFactory;
@@ -44,6 +45,17 @@ public class EachProcessor implements TridentProcessor {
 
     @Override
     public void execute(ProcessorContext processorContext, String streamId, TridentTuple tuple) {
+
+        if (tuple.isTraceable()) {
+            TraceEntry traceEntry = new TraceEntry(tuple.getTrace().size(), this.getClass().getName());
+            traceEntry.add(TraceEntry.STREAM_ID, streamId);
+            traceEntry.add(TraceEntry.BATCH_ID, processorContext.batchId.toString());
+            traceEntry.add(TraceEntry.FUNCTION, _function.getClass().getName());
+            traceEntry.add(TraceEntry.PARENT_STREAMS, _context.getParentStreams().toString());
+            traceEntry.add(TraceEntry.OUTPUT_FIELDS, _context.getSelfOutputFields().toString());
+            tuple.addTraceEntry(traceEntry);
+        }
+        
         _collector.setContext(processorContext, tuple);
         _function.execute(_projection.create(tuple), _collector);
     }

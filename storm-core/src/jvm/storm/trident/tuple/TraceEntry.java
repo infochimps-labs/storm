@@ -8,10 +8,17 @@ import java.util.Iterator;
    Annotation of a lifecycle event for a tuple
  */
 public class TraceEntry {
+
+    public static String STREAM_ID = "stream_id";
+    public static String BATCH_ID = "batch_id";
+    public static String FUNCTION = "function";
+    public static String PARENT_STREAMS = "parent_streams";
+    public static String OUTPUT_FIELDS = "output_fields";
+    
     private Integer _index; // order in trace history
     private String _name;   // the name of this entry    
     private Map<String,String> _content;
-    
+
     public TraceEntry(Integer index, String name) {
         _index = index;
         _name = name;
