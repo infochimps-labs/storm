@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface TridentTuple extends List<Object> {
+    
     public static interface Factory extends Serializable {
         Map<String, ValuePointer> getFieldIndex();
         List<String> getOutputFields();
@@ -52,4 +53,15 @@ public interface TridentTuple extends List<Object> {
     Float getFloatByField(String field);
     
     byte[] getBinaryByField(String field);
+    
+    boolean isTraceable();
+
+    MetadataMap getMetadataMap();
+
+    // Trace methods
+    void addTraceEntry(TraceEntry entry);
+
+    TraceEntry getTraceEntry(Integer index);
+
+    List<TraceEntry> getTrace();
 }

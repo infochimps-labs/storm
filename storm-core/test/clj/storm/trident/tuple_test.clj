@@ -3,7 +3,7 @@
   (:require [backtype.storm [testing :as t]])
   (:import [storm.trident.tuple TridentTupleView TridentTupleView$ProjectionFactory
             TridentTupleView$FreshOutputFactory TridentTupleView$OperationOutputFactory
-            TridentTupleView$RootFactory])
+            TridentTupleView$RootFactory TraceEntry])
   (:use [storm.trident testing])
   (:use [backtype.storm util]))
 
@@ -15,6 +15,25 @@
     (is (= 3 (.getValueByField tt "a")))
     (is (= 2 (.getValueByField tt "b")))
     (is (= 1 (.getValueByField tt "c")))
+    ))
+
+(deftest test-is-traceable
+  (letlocals
+    (bind fresh-factory (TridentTupleView$FreshOutputFactory. (fields "a" "b" "c")))
+    (bind tt (.create fresh-factory [3 2 1]))
+    (.put (.getMetadataMap tt) "is_traceable" true)
+    (is (= true (.isTraceable tt)))
+    ))
+
+(deftest test-trace
+  (letlocals
+    (bind fresh-factory (TridentTupleView$FreshOutputFactory. (fields "a" "b" "c")))
+    (bind tt (.create fresh-factory [3 2 1]))
+    (bind trace-entry (TraceEntry. (Integer. 0) "test"))
+    (.add trace-entry TraceEntry/STREAM_ID "s1")
+    (.addTraceEntry tt trace-entry)
+    (is (= trace-entry (.getTraceEntry tt (Integer. 0))))
+    (is (= [trace-entry] (.getTrace tt)))
     ))
 
 (deftest test-projection

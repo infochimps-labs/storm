@@ -7,13 +7,15 @@ import java.util.List;
 import java.util.Map;
 
 import storm.trident.tuple.TridentTuple;
+import storm.trident.tuple.MetadataMap;
+import storm.trident.tuple.TraceEntry;
 
 /**
  * A tuple intended for use in testing.
  */
 public class MockTridentTuple extends ArrayList<Object> implements TridentTuple{
   private final Map<String, Integer> fieldMap;
-
+  
   public MockTridentTuple(List<String> fieldNames, List<?> values) {
     super(values);
     fieldMap = setupFieldMap(fieldNames);
@@ -146,4 +148,29 @@ public class MockTridentTuple extends ArrayList<Object> implements TridentTuple{
   public byte[] getBinaryByField(String field) {
     return (byte[]) getValueByField(field);
   }
+  
+  @Override       
+  public boolean isTraceable() {
+    return false;
+  }
+
+  @Override
+  public MetadataMap getMetadataMap() {
+      return null;
+  }
+
+  @Override
+  public void addTraceEntry(TraceEntry entry) {
+  }
+
+  @Override
+  public TraceEntry getTraceEntry(Integer index) {
+      return null;
+  }
+
+  @Override
+  public List<TraceEntry> getTrace() {
+      return null;
+  }
+    
 }

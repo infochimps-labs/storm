@@ -18,7 +18,8 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     ValuePointer[] _index;
     Map<String, ValuePointer> _fieldIndex;
     IPersistentVector _delegates;
-    
+    MetadataMap _metadata;
+
     public static class ProjectionFactory implements Factory {
         Map<String, ValuePointer> _fieldIndex;
         ValuePointer[] _index;
@@ -37,7 +38,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
         
         public TridentTuple create(TridentTuple parent) {
             if(_index.length==0) return EMPTY_TUPLE;
-            else return new TridentTupleView(((TridentTupleView)parent)._delegates, _index, _fieldIndex);
+            else return new TridentTupleView(((TridentTupleView)parent)._delegates, _index, _fieldIndex, parent.getMetadataMap());
         }
 
         @Override
@@ -59,7 +60,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     public static class FreshOutputFactory  implements Factory {
         Map<String, ValuePointer> _fieldIndex;
         ValuePointer[] _index;
-
+        
         public FreshOutputFactory(Fields selfFields) {
             _fieldIndex = new HashMap<String, ValuePointer>();
             for(int i=0; i<selfFields.size(); i++) {
@@ -68,11 +69,11 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
             }
             _index = ValuePointer.buildIndex(selfFields, _fieldIndex);
         }
-        
+
         public TridentTuple create(List<Object> selfVals) {
             return new TridentTupleView(PersistentVector.EMPTY.cons(selfVals), _index, _fieldIndex);
         }
-
+        
         @Override
         public Map<String, ValuePointer> getFieldIndex() {
             return _fieldIndex;
@@ -120,7 +121,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
         public TridentTuple create(TridentTupleView parent, List<Object> selfVals) {
             IPersistentVector curr = parent._delegates;
             curr = (IPersistentVector) RT.conj(curr, selfVals);
-            return new TridentTupleView(curr, _index, _fieldIndex);
+            return new TridentTupleView(curr, _index, _fieldIndex, parent.getMetadataMap());
         }
 
         @Override
@@ -142,7 +143,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     public static class RootFactory implements Factory {
         ValuePointer[] index;
         Map<String, ValuePointer> fieldIndex;
-        
+
         public RootFactory(Fields inputFields) {
             index = new ValuePointer[inputFields.size()];
             int i=0;
@@ -153,7 +154,7 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
             fieldIndex = ValuePointer.buildFieldIndex(index);
         }
         
-        public TridentTuple create(Tuple parent) {            
+        public TridentTuple create(Tuple parent) {
             return new TridentTupleView(PersistentVector.EMPTY.cons(parent.getValues()), index, fieldIndex);
         }
 
@@ -182,12 +183,17 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
     }
     
     public static TridentTupleView EMPTY_TUPLE = new TridentTupleView(null, new ValuePointer[0], new HashMap());
-    
-    // index and fieldIndex are precomputed, delegates built up over many operations using persistent data structures
+
+    // index and fieldIndex are precomputed, delegates built up over many operations using persistent data structures    
     public TridentTupleView(IPersistentVector delegates, ValuePointer[] index, Map<String, ValuePointer> fieldIndex) {
+        this(delegates, index, fieldIndex, new MetadataMap());
+    }
+    
+    public TridentTupleView(IPersistentVector delegates, ValuePointer[] index, Map<String, ValuePointer> fieldIndex, MetadataMap metadata) {
         _delegates = delegates;
         _index = index;
         _fieldIndex = fieldIndex;
+        _metadata = metadata;
     }
 
     @Override
@@ -305,6 +311,31 @@ public class TridentTupleView extends AbstractList<Object> implements TridentTup
         return (byte[]) getValueByField(field);
     }
 
+    @Override
+    public boolean isTraceable() {
+        return _metadata.isTraceable();
+    }
+
+    @Override
+    public MetadataMap getMetadataMap() {
+        return _metadata;
+    }
+
+    @Override
+    public void addTraceEntry(TraceEntry entry) {
+        _metadata.addTraceEntry(entry);
+    }
+
+    @Override
+    public TraceEntry getTraceEntry(Integer index) {
+        return _metadata.getTraceEntry(index);
+    }
+
+    @Override
+    public List<TraceEntry> getTrace() {
+        return _metadata.getTrace();
+    }
+        
     private Object getValueByPointer(ValuePointer ptr) {
         return ((List<Object>)_delegates.nth(ptr.delegateIndex)).get(ptr.index);     
     }
