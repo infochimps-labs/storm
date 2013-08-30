@@ -1,5 +1,8 @@
 package storm.trident.planner.processor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import backtype.storm.utils.Utils;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.Fields;
 import java.util.List;
@@ -13,8 +16,10 @@ import storm.trident.tuple.TridentTuple;
 import storm.trident.tuple.TridentTuple.Factory;
 import storm.trident.tuple.TridentTupleView.ProjectionFactory;
 
-
 public class EachProcessor implements TridentProcessor {
+    
+    public static Logger LOG = LoggerFactory.getLogger(EachProcessor.class);
+    
     Function _function;
     TridentContext _context;
     AppendCollector _collector;
@@ -54,6 +59,7 @@ public class EachProcessor implements TridentProcessor {
             traceEntry.add(TraceEntry.PARENT_STREAMS, _context.getParentStreams().toString());
             traceEntry.add(TraceEntry.OUTPUT_FIELDS, _context.getSelfOutputFields().toString());
             tuple.addTraceEntry(traceEntry);
+            LOG.info(Utils.logString("EachProcessor.execute:", streamId,  processorContext.batchId.toString(), "tuple", tuple.toString(), "metadata", tuple.getMetadataMap().toString()));
         }
         
         _collector.setContext(processorContext, tuple);

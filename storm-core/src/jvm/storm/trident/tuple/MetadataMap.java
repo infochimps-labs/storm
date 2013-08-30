@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collection;
+import java.util.Iterator;
+
+import backtype.storm.utils.Utils;
 
 public class MetadataMap implements Map<String,Object> {
 
@@ -93,18 +96,22 @@ public class MetadataMap implements Map<String,Object> {
         return _metadata.values();
     }
 
-    // TODO: This isn't the best, but it's ok for debugging
     public String toString() {
-        StringBuffer b = new StringBuffer();
-        b.append("{");
-        for (Map.Entry<String, Object> pair: entrySet()) {
-            b.append(" [");
-            b.append(pair.getKey());
-            b.append(" => ");
-            b.append(pair.getValue());
-            b.append("] ");
+        StringBuilder sb = new StringBuilder();
+        Iterator<Map.Entry<String,Object>> itr = entrySet().iterator();
+        while (itr.hasNext()) {
+            Map.Entry<String,Object> pair = itr.next(); 
+            sb.append(pair.getKey());
+            sb.append("=");
+            if (pair.getValue() instanceof List) { // trace
+                sb.append(Utils.join((ArrayList<String>)pair.getValue(),"\n"));
+            } else {
+                sb.append(pair.getValue());
+            }
+            if (itr.hasNext()) {
+                sb.append("\t| ");
+            }
         }
-        b.append("}");
-        return b.toString();
+        return sb.toString();
     }
 }
