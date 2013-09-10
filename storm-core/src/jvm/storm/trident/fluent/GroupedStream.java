@@ -7,6 +7,7 @@ import storm.trident.operation.Aggregator;
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Function;
 import storm.trident.operation.ReducerAggregator;
+import storm.trident.operation.ImproverAggregator;
 import storm.trident.operation.impl.GroupedAggregator;
 import storm.trident.operation.impl.SingleEmitAggregator.BatchToPartition;
 import storm.trident.state.QueryFunction;
@@ -14,6 +15,7 @@ import storm.trident.state.StateFactory;
 import storm.trident.state.StateSpec;
 import storm.trident.state.map.MapCombinerAggStateUpdater;
 import storm.trident.state.map.MapReducerAggStateUpdater;
+import storm.trident.state.map.MapImproverAggStateUpdater;
 import storm.trident.util.TridentUtils;
 
 
@@ -115,6 +117,26 @@ public class GroupedStream implements IAggregatableStream, GlobalAggregationSche
     public Stream stateQuery(TridentState state, QueryFunction function, Fields functionFields) {
         return stateQuery(state, null, function, functionFields);
     }
+
+    public TridentState persistentAggregate(StateFactory stateFactory, Fields inputFields, ImproverAggregator improver, Fields functionFields) {
+        return persistentAggregate(new StateSpec(stateFactory), inputFields, improver, functionFields);
+    }
+
+    public TridentState persistentAggregate(StateFactory stateFactory, ImproverAggregator improver, Fields functionFields) {
+        return persistentAggregate(new StateSpec(stateFactory), improver, functionFields);
+    }
+    
+    public TridentState persistentAggregate(StateSpec spec, ImproverAggregator improver, Fields functionFields) {
+        return persistentAggregate(spec, null, improver, functionFields);
+    }
+
+    public TridentState persistentAggregate(StateSpec spec, Fields inputFields, ImproverAggregator improver, Fields functionFields ) {
+        return _stream.partitionBy(_groupFields)
+                .partitionPersist(spec,
+                    TridentUtils.fieldsUnion(_groupFields, inputFields),
+                    new MapImproverAggStateUpdater(improver, _groupFields, inputFields),
+                    TridentUtils.fieldsConcat(_groupFields, functionFields));
+    }                                         
     
     @Override
     public IAggregatableStream each(Fields inputFields, Function function, Fields functionFields) {

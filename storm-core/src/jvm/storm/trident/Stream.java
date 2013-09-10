@@ -15,10 +15,12 @@ import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Filter;
 import storm.trident.operation.Function;
 import storm.trident.operation.ReducerAggregator;
+import storm.trident.operation.ImproverAggregator;
 import storm.trident.operation.impl.CombinerAggStateUpdater;
 import storm.trident.operation.impl.FilterExecutor;
 import storm.trident.operation.impl.GlobalBatchToPartition;
 import storm.trident.operation.impl.ReducerAggStateUpdater;
+import storm.trident.operation.impl.ImproverAggStateUpdater;
 import storm.trident.operation.impl.IndexHashBatchToPartition;
 import storm.trident.operation.impl.SingleEmitAggregator.BatchToPartition;
 import storm.trident.operation.impl.TrueFilter;
@@ -298,6 +300,23 @@ public class Stream implements IAggregatableStream {
     public TridentState persistentAggregate(StateSpec spec, Fields inputFields, ReducerAggregator agg, Fields functionFields) {
         projectionValidation(inputFields);
         return global().partitionPersist(spec, inputFields, new ReducerAggStateUpdater(agg), functionFields);
+    }
+
+    public TridentState persistentAggregate(StateFactory stateFactory, Fields inputFields, ImproverAggregator improver, Fields functionFields) {
+        return persistentAggregate(new StateSpec(stateFactory), inputFields, improver, functionFields);
+    }
+
+    public TridentState persistentAggregate(StateFactory stateFactory, ImproverAggregator improver, Fields functionFields) {
+        return persistentAggregate(new StateSpec(stateFactory), improver, functionFields);
+    }
+    
+    public TridentState persistentAggregate(StateSpec spec, ImproverAggregator improver, Fields functionFields) {
+        return persistentAggregate(spec, null, improver, functionFields);
+    }
+
+    public TridentState persistentAggregate(StateSpec spec, Fields inputFields, ImproverAggregator improver, Fields functionFields ) {
+        projectionValidation(inputFields);
+        return global().partitionPersist(spec, inputFields, new ImproverAggStateUpdater(improver), functionFields);
     }
     
     public Stream stateQuery(TridentState state, QueryFunction function, Fields functionFields) {
