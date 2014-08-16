@@ -13,15 +13,18 @@ import storm.trident.tuple.TridentTuple;
  */
 public class MockTridentTuple extends ArrayList<Object> implements TridentTuple{
   private final Map<String, Integer> fieldMap;
-
+  private boolean _isTraceable;
+  
   public MockTridentTuple(List<String> fieldNames, List<?> values) {
     super(values);
     fieldMap = setupFieldMap(fieldNames);
+    _isTraceable = false;
   }
 
   public MockTridentTuple(List<String> fieldName, Object... values) {
     super(Arrays.asList(values));
     fieldMap = setupFieldMap(fieldName);
+    _isTraceable = false;
   }
 
   private Map<String, Integer> setupFieldMap(List<String> fieldNames) {
@@ -145,5 +148,34 @@ public class MockTridentTuple extends ArrayList<Object> implements TridentTuple{
   @Override
   public byte[] getBinaryByField(String field) {
     return (byte[]) getValueByField(field);
+  }
+
+  @Override  
+  public void makeTraceable() {
+    _isTraceable = true;
+  }
+ 
+  @Override   
+  public void makeUntraceable() {
+    _isTraceable = false;
+  }
+  
+  @Override       
+  public boolean isTraceable() {
+    return _isTraceable;
+  }
+
+  @Override
+  public void annotate(TridentTuple.AnnotationKeys key, Object value) {
+  }
+
+  @Override
+  public Object getAnnotation(TridentTuple.AnnotationKeys key) {
+      return null;
+  }
+
+  @Override
+  public Map<TridentTuple.AnnotationKeys,Object> getAnnotations() {
+      return null;
   }
 }

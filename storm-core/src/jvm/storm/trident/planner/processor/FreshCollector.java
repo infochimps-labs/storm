@@ -16,7 +16,7 @@ public class FreshCollector implements TridentCollector {
     
     public FreshCollector(TridentContext context) {
         _triContext = context;
-        _factory = new FreshOutputFactory(context.getSelfOutputFields());
+        _factory = new FreshOutputFactory(context.getSelfOutputFields(), context.getTracerEmitFreq());
     }
                 
     public void setContext(ProcessorContext pc) {

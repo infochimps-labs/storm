@@ -47,6 +47,11 @@ public class SubtopologyBolt implements ITridentBatchBolt {
     @Override
     public void prepare(Map conf, TopologyContext context, BatchOutputCollector batchCollector) {
         int thisComponentNumTasks = context.getComponentTasks(context.getThisComponentId()).size();
+        Long tracerEmitFreq = TridentTuple.DEFAULT_TRACER_EMIT_FREQ;            
+        if (conf.containsKey(TridentTuple.TRACER_EMIT_FREQ)) {
+            tracerEmitFreq = (Long)conf.get(TridentTuple.TRACER_EMIT_FREQ);
+        }
+        
         for(Node n: _nodes) {
             if(n.stateInfo!=null) {
                 State s = n.stateInfo.spec.stateFactory.makeState(conf, context, context.getThisTaskIndex(), thisComponentNumTasks);
@@ -73,7 +78,7 @@ public class SubtopologyBolt implements ITridentBatchBolt {
                         parentFactories.add(_outputFactories.get(p));
                     } else {
                         if(!_roots.containsKey(p.streamId)) {
-                            _roots.put(p.streamId, new InitialReceiver(p.streamId, getSourceOutputFields(context, p.streamId)));
+                            _roots.put(p.streamId, new InitialReceiver(p.streamId, getSourceOutputFields(context, p.streamId), tracerEmitFreq));
                         } 
                         _roots.get(p.streamId).addReceiver(pn.processor);
                         parentFactories.add(_roots.get(p.streamId).getOutputFactory());
@@ -91,6 +96,7 @@ public class SubtopologyBolt implements ITridentBatchBolt {
                 if(outgoingNode) {
                     targets.add(new BridgeReceiver(batchCollector));
                 }
+
                 
                 TridentContext triContext = new TridentContext(
                         pn.selfOutFields,
@@ -99,6 +105,7 @@ public class SubtopologyBolt implements ITridentBatchBolt {
                         targets,
                         pn.streamId,
                         stateIndex,
+                        tracerEmitFreq,
                         batchCollector
                         );
                 pn.processor.prepare(conf, context, triContext);
@@ -173,11 +180,11 @@ public class SubtopologyBolt implements ITridentBatchBolt {
         ProjectionFactory _project;
         String _stream;
         
-        public InitialReceiver(String stream, Fields allFields) {
+        public InitialReceiver(String stream, Fields allFields, Long tracerEmitFreq) {
             // TODO: don't want to project for non-batch bolts...???
             // how to distinguish "batch" streams from non-batch streams?
             _stream = stream;
-            _factory = new RootFactory(allFields);
+            _factory = new RootFactory(allFields, tracerEmitFreq);
             List<String> projected = new ArrayList(allFields.toList());
             projected.remove(0);
             _project = new ProjectionFactory(_factory, new Fields(projected));

@@ -17,6 +17,16 @@
     (is (= 1 (.getValueByField tt "c")))
     ))
 
+(deftest test-is-traceable
+  (letlocals
+    (bind fresh-factory (TridentTupleView$FreshOutputFactory. (fields "a" "b" "c")))
+    (bind tt (.create fresh-factory [3 2 1]))
+    (.makeTraceable tt)
+    (is (= true (.isTraceable tt)))
+    (.makeUntraceable tt)
+    (is (= false (.isTraceable tt)))
+    ))
+
 (deftest test-projection
   (letlocals
     (bind fresh-factory (TridentTupleView$FreshOutputFactory. (fields "a" "b" "c" "d" "e")))
